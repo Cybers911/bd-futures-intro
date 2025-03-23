@@ -4,25 +4,21 @@ import futures.MusicAccountService;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 public class MusicAccountRetriever {
 
-    private MusicAccountService accountService;
+    private final MusicAccountService accountService;
 
-    /**
-     * Constructor for MusicAccountRetriever.
-     */
     public MusicAccountRetriever() {
         accountService = new MusicAccountService();
     }
 
     /**
      * Retrieves a list of AmazonMusicAccounts given a list of String account IDs.
-     * PARTICIPANTS: Complete this method. It should submit an ImportAccountTask to the ExecutorService and return the
-     *   Future&lt;AmazonMusicAccount&gt;.
      * @param accountIDs List of String account IDs.
      * @return List of imported AmazonMusicAccounts.
      */
@@ -30,16 +26,24 @@ public class MusicAccountRetriever {
         ExecutorService accountExecutor = Executors.newCachedThreadPool();
         List<AmazonMusicAccount> accountList = new ArrayList<>();
 
-        List<Future<AmazonMusicAccount>> results = null;
+        List<Future<AmazonMusicAccount>> results;
         try {
             results = accountExecutor.invokeAll(generateImportTasks(accountIDs));
         } catch (InterruptedException e) {
-            e.printStackTrace();
+            System.out.println("MusicAccountStatsManager was interrupted.");
+            Thread.currentThread().interrupt();
+            return accountList;
         }
 
         for (Future<AmazonMusicAccount> result : results) {
-            //PARTICIPANTS: replace the following line.
-            accountList.add(new AmazonMusicAccount("Null", 0, "Null"));
+            try {
+                accountList.add(result.get());
+            } catch (InterruptedException e) {
+                System.out.println("MusicAccountStatsManager was interrupted.");
+                Thread.currentThread().interrupt();
+            } catch (ExecutionException e) {
+                System.out.println("ImportAccountTask threw an exception.");
+            }
         }
 
         accountExecutor.shutdown();
